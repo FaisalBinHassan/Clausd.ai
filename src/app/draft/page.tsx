@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   FileText, ArrowLeft, ArrowRight, Check, Loader2, Download,
-  RefreshCw, ChevronRight, Sparkles, Scale, Building2, Users,
+  RefreshCw, Sparkles, Scale, Building2, Users,
   UserCheck, ShieldCheck, ScrollText, Briefcase, Home, PenTool,
-  Printer, Copy, FileDown, ChevronDown, Save,
+  Printer, Copy, FileDown, Save,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { saveDocument } from "../lib/document-store";
@@ -410,14 +410,21 @@ function FinalExport({ ast, documentName, documentType, templateId, customizatio
 }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const template = getTemplate(templateId);
   const html = renderDocumentHTML(ast, template, customization, logoDataUrl, signatureDataUrl, placeholders);
 
-  const handleSave = () => {
-    if (!isAuthenticated) { router.push("/login"); return; }
-    saveDocument({ title: documentName, type: documentType, templateId, rawText: ast.rawText, answersCount });
+  const handleSave = async () => {
+    if (!isAuthenticated || !user) { router.push("/login"); return; }
+    await saveDocument(user.id, {
+      title: documentName,
+      type: documentType,
+      templateId,
+      rawText: ast.rawText,
+      answersCount,
+      htmlContent: html,
+    });
     setSaved(true);
   };
 
@@ -512,6 +519,8 @@ function FinalExport({ ast, documentName, documentType, templateId, customizatio
 // ─── Main Draft Page ─────────────────────────────────────────────────
 
 export default function DraftPage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("select");
   const [documentType, setDocumentType] = useState("");
   const [documentName, setDocumentName] = useState("");
@@ -524,6 +533,25 @@ export default function DraftPage() {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [placeholders, setPlaceholders] = useState<PlaceholderMap>({});
   const [generating, setGenerating] = useState(false);
+
+  // Auth guard — redirect to login if not signed in
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/login?redirect=/draft");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect
+  }
 
   const handleSelectDoc = (id: string, name: string) => { setDocumentType(id); setDocumentName(name); setStep("mcq"); };
 

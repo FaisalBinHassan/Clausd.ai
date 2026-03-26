@@ -20,16 +20,20 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email || !password) { setError("Please fill in all fields"); return; }
     setError(""); setLoading(true);
-    const ok = await login(email, password);
+    const result = await login(email, password);
     setLoading(false);
-    if (ok) router.push("/dashboard");
+    if (result.success) router.push("/dashboard");
+    else setError(result.error || "Login failed");
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const ok = await loginWithGoogle();
-    setGoogleLoading(false);
-    if (ok) router.push("/dashboard");
+    const result = await loginWithGoogle();
+    if (!result.success) {
+      setGoogleLoading(false);
+      setError(result.error || "Google login failed");
+    }
+    // Google OAuth redirects, so no need to push
   };
 
   return (

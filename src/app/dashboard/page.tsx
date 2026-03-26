@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   FileText, Plus, LogOut, Download, Trash2, Clock,
-  BarChart3, FolderOpen, ChevronRight, Search,
+  BarChart3, FolderOpen, Search, Loader2,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { listDocuments, deleteDocument, SavedDocument } from "../lib/document-store";
@@ -14,27 +14,40 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const [documents, setDocuments] = useState<SavedDocument[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) router.push("/login");
   }, [isLoading, isAuthenticated, router]);
 
-  useEffect(() => {
-    Promise.resolve().then(() => setDocuments(listDocuments()));
-  }, []);
+  const loadDocs = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const docs = await listDocuments(user.id);
+    setDocuments(docs);
+    setLoading(false);
+  }, [user]);
 
-  const handleDelete = (id: string) => {
-    deleteDocument(id);
-    setDocuments(listDocuments());
+  useEffect(() => {
+    if (user) {
+      void Promise.resolve().then(() => loadDocs());
+    }
+  }, [user, loadDocs]);
+
+  const handleDelete = async (id: string) => {
+    await deleteDocument(id);
+    await loadDocs();
   };
 
   const handleDownload = (doc: SavedDocument) => {
-    const blob = new Blob([doc.rawText], { type: "text/plain;charset=utf-8" });
+    const content = doc.html_content || doc.raw_text;
+    const isHTML = !!doc.html_content;
+    const blob = new Blob([content], { type: isHTML ? "text/html;charset=utf-8" : "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${doc.title.replace(/\s+/g, "_")}.txt`;
+    a.download = `${doc.title.replace(/\s+/g, "_")}.${isHTML ? "html" : "txt"}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -47,7 +60,7 @@ export default function DashboardPage() {
   );
 
   const thisMonth = documents.filter(d => {
-    const created = new Date(d.createdAt);
+    const created = new Date(d.created_at);
     const now = new Date();
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
   }).length;
@@ -57,7 +70,7 @@ export default function DashboardPage() {
   const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
   if (isLoading || !isAuthenticated) {
-    return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>;
+    return <div className="min-h-screen bg-[#09090b] flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-accent" /></div>;
   }
 
   return (
@@ -76,12 +89,13 @@ export default function DashboardPage() {
               <Plus className="w-3.5 h-3.5" /> New Document
             </Link>
             <div className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={user?.avatar} alt="" className="w-8 h-8 rounded-full" />
               <div className="hidden sm:block">
                 <p className="text-xs font-medium leading-none">{user?.name}</p>
                 <p className="text-[10px] text-zinc-500 mt-0.5">{user?.email}</p>
               </div>
-              <button onClick={() => { logout(); router.push("/"); }} className="text-zinc-500 hover:text-white transition p-1.5">
+              <button onClick={async () => { await logout(); router.push("/"); }} className="text-zinc-500 hover:text-white transition p-1.5">
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -148,8 +162,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Documents grid */}
-        {filtered.length === 0 ? (
+        {/* Loading */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-6 h-6 animate-spin text-accent" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <div className="w-16 h-16 rounded-2xl bg-white/[0.03] flex items-center justify-center mx-auto mb-4">
               <FileText className="w-7 h-7 text-zinc-600" />
@@ -172,22 +190,15 @@ export default function DashboardPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map(doc => (
               <div key={doc.id} className="glass-card rounded-xl p-5 group hover:border-white/[0.1] transition">
-                {/* Type badge */}
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">{doc.type}</span>
-                  <span className="text-[10px] text-zinc-600">{new Date(doc.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                  <span className="text-[10px] text-zinc-600">{new Date(doc.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </div>
-
-                {/* Title */}
                 <h3 className="font-semibold text-sm mb-1 truncate">{doc.title}</h3>
-                <p className="text-[11px] text-zinc-500 mb-4">{doc.answersCount} questions answered &middot; {doc.templateId} template</p>
-
-                {/* Preview snippet */}
+                <p className="text-[11px] text-zinc-500 mb-4">{doc.answers_count} questions answered &middot; {doc.template_id} template</p>
                 <div className="bg-white/[0.02] rounded-lg p-3 mb-4 border border-white/[0.04]">
-                  <p className="text-[10px] text-zinc-500 line-clamp-3 leading-relaxed">{doc.rawText.slice(0, 200)}...</p>
+                  <p className="text-[10px] text-zinc-500 line-clamp-3 leading-relaxed">{doc.raw_text.slice(0, 200)}...</p>
                 </div>
-
-                {/* Actions */}
                 <div className="flex items-center gap-2">
                   <button onClick={() => handleDownload(doc)} className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-xs font-medium transition">
                     <Download className="w-3 h-3" /> Download
@@ -198,8 +209,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-
-            {/* New document card */}
             <Link href="/draft" className="rounded-xl border-2 border-dashed border-white/[0.06] hover:border-accent/30 flex flex-col items-center justify-center p-8 text-center transition group min-h-[200px]">
               <div className="w-12 h-12 rounded-xl bg-accent/10 text-accent flex items-center justify-center mb-3 group-hover:bg-accent group-hover:text-white transition">
                 <Plus className="w-5 h-5" />

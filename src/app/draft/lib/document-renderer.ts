@@ -45,7 +45,8 @@ const scalesSVG = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" s
 
 const shieldSVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2l7 4v5c0 5-3.5 9.5-7 11-3.5-1.5-7-6-7-11V6l7-4z"/><path d="M9 12l2 2 4-4"/></svg>`;
 
-const columnSVG = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="16" width="4" height="5" rx="0.5"/><rect x="10" y="10" width="4" height="11" rx="0.5"/><rect x="17" y="4" width="4" height="17" rx="0.5"/><line x1="2" y1="21.5" x2="22" y2="21.5"/></svg>`;
+const _columnSVG = `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="3" y="16" width="4" height="5" rx="0.5"/><rect x="10" y="10" width="4" height="11" rx="0.5"/><rect x="17" y="4" width="4" height="17" rx="0.5"/><line x1="2" y1="21.5" x2="22" y2="21.5"/></svg>`;
+void _columnSVG;
 
 // ─── Header Renderers ────────────────────────────────────────────────
 

@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FileText, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 
 export default function SignupPage() {
-  const router = useRouter();
   const { signup, loginWithGoogle } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -17,22 +15,49 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [success, setSuccess] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password) { setError("Please fill in all fields"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setError(""); setLoading(true);
-    const ok = await signup(name, email, password);
+    const result = await signup(name, email, password);
     setLoading(false);
-    if (ok) router.push("/dashboard");
+    if (result.success) {
+      setSuccess(true);
+    } else {
+      setError(result.error || "Signup failed");
+    }
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    const ok = await loginWithGoogle();
-    setGoogleLoading(false);
-    if (ok) router.push("/dashboard");
+    const result = await loginWithGoogle();
+    if (!result.success) {
+      setGoogleLoading(false);
+      setError(result.error || "Google login failed");
+    }
   };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-[#09090b] flex items-center justify-center p-6">
+        <div className="text-center max-w-md">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Check your email</h2>
+          <p className="text-zinc-400 text-sm mb-6">
+            We&apos;ve sent a confirmation link to <strong className="text-white">{email}</strong>. Click the link to activate your account.
+          </p>
+          <Link href="/login" className="text-accent hover:underline text-sm font-medium">
+            Back to login
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#09090b] flex">

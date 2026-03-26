@@ -21,7 +21,7 @@ export default function DashboardPage() {
   }, [isLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    setDocuments(listDocuments());
+    Promise.resolve().then(() => setDocuments(listDocuments()));
   }, []);
 
   const handleDelete = (id: string) => {

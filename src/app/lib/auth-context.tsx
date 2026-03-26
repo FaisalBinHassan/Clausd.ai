@@ -35,9 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem("clausd_user");
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) Promise.resolve().then(() => setUser(JSON.parse(stored)));
     } catch { /* */ }
-    setIsLoading(false);
+    Promise.resolve().then(() => setIsLoading(false));
   }, []);
 
   const saveUser = (u: User) => {

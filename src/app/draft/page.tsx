@@ -143,7 +143,8 @@ function MCQFlow({ documentType, documentName, onComplete, onBack }: {
     setLoading(false);
   };
 
-  useEffect(() => { fetchNext([]); /* eslint-disable-next-line */ }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void Promise.resolve().then(() => fetchNext([])); }, []);
   useEffect(() => { qRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, [question]);
 
   const handleNext = () => {

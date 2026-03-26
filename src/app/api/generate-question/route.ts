@@ -521,7 +521,7 @@ export async function POST(req: NextRequest) {
     // Phase 1: Serve base questions
     if (answeredCount < baseQuestions.length) {
       const nextQ = baseQuestions[answeredCount];
-      let options = [...nextQ.options];
+      const options = [...nextQ.options];
       if (!options.some((o) => o.toLowerCase().includes("other"))) {
         options.push("Other — I'll specify");
       }
@@ -539,7 +539,7 @@ export async function POST(req: NextRequest) {
     // Phase 2: Adaptive follow-up questions based on previous answers
     const followUp = generateFollowUp(documentType, previousAnswers);
     if (followUp) {
-      let options = [...followUp.options];
+      const options = [...followUp.options];
       if (!options.some((o) => o.toLowerCase().includes("other"))) {
         options.push("Other — I'll specify");
       }

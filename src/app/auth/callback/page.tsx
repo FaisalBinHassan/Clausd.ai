@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const [error, setError] = useState("");
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const url = new URL(window.location.href);
-        const code = url.searchParams.get("code");
-        const errorParam = url.searchParams.get("error_description");
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("code");
+        const errorParam = params.get("error_description");
 
         if (errorParam) {
           setError(errorParam);
@@ -30,33 +28,15 @@ export default function AuthCallbackPage() {
           }
         }
 
-        // Wait for onAuthStateChange to process the session
-        // (handles both code exchange and hash fragment flows)
-        let attempts = 0;
-        const checkSession = async (): Promise<boolean> => {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          return !!session;
-        };
-
-        while (attempts < 10) {
-          if (await checkSession()) {
-            router.push("/dashboard");
-            return;
-          }
-          await new Promise((r) => setTimeout(r, 500));
-          attempts++;
-        }
-
-        setError("Could not sign in. Please try again.");
+        // Session is now stored — redirect to dashboard
+        window.location.href = "/dashboard";
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
       }
     };
 
     handleCallback();
-  }, [router]);
+  }, []);
 
   if (error) {
     return (

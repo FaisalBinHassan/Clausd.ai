@@ -82,33 +82,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Check if URL has hash fragment from OAuth redirect
-    const hasHashToken =
-      typeof window !== "undefined" &&
-      window.location.hash.includes("access_token");
+    const init = async () => {
+      // Check if URL has hash fragment from OAuth redirect
+      if (
+        typeof window !== "undefined" &&
+        window.location.hash.includes("access_token")
+      ) {
+        // Manually parse hash fragment and set session
+        const params = new URLSearchParams(
+          window.location.hash.substring(1)
+        );
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
 
-    // Listen for auth changes FIRST (before getSession)
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (!error && data.session) {
+            handleSession(data.session);
+            // Clean up hash from URL
+            window.history.replaceState(
+              null,
+              "",
+              window.location.pathname
+            );
+            return;
+          }
+        }
+      }
+
+      // Normal flow: get existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      handleSession(session);
+    };
+
+    init();
+
+    // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       handleSession(session);
-      // Clean up hash fragment after successful sign in
-      if (event === "SIGNED_IN" && window.location.hash) {
-        window.history.replaceState(
-          null,
-          "",
-          window.location.pathname + window.location.search
-        );
-      }
-    });
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // Only set loading false if no hash token pending
-      if (!hasHashToken || session) {
-        handleSession(session);
-      }
-      // If hash token exists but no session yet, onAuthStateChange will handle it
     });
 
     return () => subscription.unsubscribe();

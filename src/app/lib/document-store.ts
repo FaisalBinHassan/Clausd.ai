@@ -71,6 +71,24 @@ export async function deleteDocument(id: string): Promise<void> {
   }
 }
 
+export async function updateDocument(
+  id: string,
+  updates: Partial<{ title: string; template_id: string; raw_text: string; html_content: string }>
+): Promise<SavedDocument | null> {
+  const { data, error } = await supabase
+    .from("documents")
+    .update(updates)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error updating document:", error);
+    return null;
+  }
+  return data;
+}
+
 export async function getDocument(id: string): Promise<SavedDocument | null> {
   const { data, error } = await supabase
     .from("documents")

@@ -18,7 +18,13 @@ export default function DashboardPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) router.push("/login");
+    if (!isLoading && !isAuthenticated) {
+      // Give Supabase a moment to detect session from URL hash (OAuth redirect)
+      const timeout = setTimeout(() => {
+        if (!isAuthenticated) router.push("/login");
+      }, 2000);
+      return () => clearTimeout(timeout);
+    }
   }, [isLoading, isAuthenticated, router]);
 
   const loadDocs = useCallback(async () => {

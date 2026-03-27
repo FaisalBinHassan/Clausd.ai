@@ -82,16 +82,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      handleSession(session);
-    });
+    // Check if URL has hash fragment from OAuth redirect
+    const hasHashToken =
+      typeof window !== "undefined" &&
+      window.location.hash.includes("access_token");
 
-    // Listen for auth changes
+    // Listen for auth changes FIRST (before getSession)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       handleSession(session);
+      // Clean up hash fragment after successful sign in
+      if (event === "SIGNED_IN" && window.location.hash) {
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search
+        );
+      }
+    });
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // Only set loading false if no hash token pending
+      if (!hasHashToken || session) {
+        handleSession(session);
+      }
+      // If hash token exists but no session yet, onAuthStateChange will handle it
     });
 
     return () => subscription.unsubscribe();

@@ -5,7 +5,6 @@ import {
   useContext,
   useState,
   useEffect,
-  useRef,
   ReactNode,
 } from "react";
 import { supabase } from "./supabase";
@@ -71,55 +70,29 @@ function mapSupabaseUser(su: SupabaseUser): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const initDone = useRef(false);
 
   useEffect(() => {
-    let subscription: { unsubscribe: () => void } | null = null;
-
-    const init = async () => {
-      // Check if URL has hash fragment from OAuth redirect
-      if (window.location.hash.includes("access_token")) {
-        const params = new URLSearchParams(
-          window.location.hash.substring(1)
-        );
-        const accessToken = params.get("access_token");
-        const refreshToken = params.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          // Force full page reload without hash — session is now in storage
-          window.location.replace(window.location.pathname);
-          return;
-        }
+    // Get initial session from storage
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(mapSupabaseUser(session.user));
       }
+      setIsLoading(false);
+    });
 
-      // If not handled by hash, get existing session
-      if (!initDone.current) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setUser(mapSupabaseUser(session.user));
-        }
-        setIsLoading(false);
-        initDone.current = true;
-      }
-
-      // NOW subscribe to changes (after init is done)
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
         if (session?.user) {
           setUser(mapSupabaseUser(session.user));
         } else {
           setUser(null);
         }
-      });
-      subscription = data.subscription;
-    };
+        setIsLoading(false);
+      }
+    );
 
-    init();
-
-    return () => { subscription?.unsubscribe(); };
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (
@@ -157,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
     if (error) return { success: false, error: error.message };

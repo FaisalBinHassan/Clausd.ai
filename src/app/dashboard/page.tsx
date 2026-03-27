@@ -19,11 +19,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      // Give Supabase a moment to detect session from URL hash (OAuth redirect)
-      const timeout = setTimeout(() => {
-        if (!isAuthenticated) router.push("/login");
-      }, 2000);
-      return () => clearTimeout(timeout);
+      router.push("/login");
     }
   }, [isLoading, isAuthenticated, router]);
 

@@ -1,68 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// Create a standalone client — don't rely on shared instance or auth context
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }
+);
 
 export default function AuthCallbackPage() {
-  const [error, setError] = useState("");
-
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const errorParam = params.get("error_description");
+    async function handle() {
+      const hash = window.location.hash;
 
-        if (errorParam) {
-          setError(errorParam);
-          return;
+      if (hash && hash.includes("access_token")) {
+        // Parse tokens from hash fragment
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          // Store the session
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
         }
-
-        if (code) {
-          const { error: exchangeError } =
-            await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) {
-            setError(exchangeError.message);
-            return;
-          }
-        }
-
-        // Session is now stored — redirect to dashboard
-        window.location.href = "/dashboard";
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
       }
-    };
 
-    handleCallback();
+      // Always redirect to dashboard with a full page load
+      window.location.href = "/dashboard";
+    }
+
+    handle();
   }, []);
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-6">
-            <span className="text-2xl text-red-400">!</span>
-          </div>
-          <h2 className="text-xl font-bold mb-2">Sign in failed</h2>
-          <p className="text-zinc-400 text-sm mb-6">{error}</p>
-          <a
-            href="/login"
-            className="text-accent hover:underline text-sm font-medium"
-          >
-            Back to login
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
-      <div className="text-center">
-        <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-4" />
-        <p className="text-sm text-zinc-400">Signing you in...</p>
+    <div style={{
+      minHeight: "100vh",
+      background: "#09090b",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "white",
+      fontFamily: "system-ui",
+    }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{
+          width: 32, height: 32, border: "3px solid #7c5cfc",
+          borderTopColor: "transparent", borderRadius: "50%",
+          animation: "spin 1s linear infinite", margin: "0 auto 16px",
+        }} />
+        <p style={{ color: "#71717a", fontSize: 14 }}>Signing you in...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   );

@@ -30,7 +30,9 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        setDebug(`Tokens found. AT length: ${accessToken.length}, RT: ${refreshToken}`);
+        const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "MISSING";
+        const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "MISSING";
+        setDebug(`Tokens found. AT length: ${accessToken.length}, RT: ${refreshToken} | ENV URL: ${envUrl.substring(0, 30)}... | ENV KEY: ${envKey.substring(0, 10)}...`);
         setStatus("Setting session...");
 
         // Create client
@@ -65,8 +67,8 @@ export default function AuthCallbackPage() {
           setStatus("Success! Redirecting...");
         }
 
-        // Redirect
-        window.location.href = "/dashboard";
+        // Redirect after delay so debug info is visible
+        setTimeout(() => { window.location.href = "/dashboard"; }, 5000);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         setStatus(`Unexpected error: ${msg}`);

@@ -86,18 +86,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const refreshToken = params.get("refresh_token");
 
         if (accessToken && refreshToken) {
-          const { data, error } = await supabase.auth.setSession({
+          await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-
-          if (!error && data.session) {
-            setUser(mapSupabaseUser(data.session.user));
-            setIsLoading(false);
-            initDone.current = true;
-            // Clean up hash from URL
-            window.history.replaceState(null, "", window.location.pathname);
-          }
+          // Force full page reload without hash — session is now in storage
+          window.location.replace(window.location.pathname);
+          return;
         }
       }
 

@@ -5,11 +5,11 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
-  useCallback,
 } from "react";
 import { supabase } from "./supabase";
-import type { User as SupabaseUser, Session } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export interface User {
   id: string;
@@ -71,24 +71,14 @@ function mapSupabaseUser(su: SupabaseUser): User {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const handleSession = useCallback((session: Session | null) => {
-    if (session?.user) {
-      setUser(mapSupabaseUser(session.user));
-    } else {
-      setUser(null);
-    }
-    setIsLoading(false);
-  }, []);
+  const initDone = useRef(false);
 
   useEffect(() => {
+    let subscription: { unsubscribe: () => void } | null = null;
+
     const init = async () => {
       // Check if URL has hash fragment from OAuth redirect
-      if (
-        typeof window !== "undefined" &&
-        window.location.hash.includes("access_token")
-      ) {
-        // Manually parse hash fragment and set session
+      if (window.location.hash.includes("access_token")) {
         const params = new URLSearchParams(
           window.location.hash.substring(1)
         );
@@ -102,34 +92,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           if (!error && data.session) {
-            handleSession(data.session);
+            setUser(mapSupabaseUser(data.session.user));
+            setIsLoading(false);
+            initDone.current = true;
             // Clean up hash from URL
-            window.history.replaceState(
-              null,
-              "",
-              window.location.pathname
-            );
-            return;
+            window.history.replaceState(null, "", window.location.pathname);
           }
         }
       }
 
-      // Normal flow: get existing session
-      const { data: { session } } = await supabase.auth.getSession();
-      handleSession(session);
+      // If not handled by hash, get existing session
+      if (!initDone.current) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(mapSupabaseUser(session.user));
+        }
+        setIsLoading(false);
+        initDone.current = true;
+      }
+
+      // NOW subscribe to changes (after init is done)
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setUser(mapSupabaseUser(session.user));
+        } else {
+          setUser(null);
+        }
+      });
+      subscription = data.subscription;
     };
 
     init();
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [handleSession]);
+    return () => { subscription?.unsubscribe(); };
+  }, []);
 
   const login = async (
     email: string,
